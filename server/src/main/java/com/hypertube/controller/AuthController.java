@@ -12,18 +12,18 @@ public class AuthController {
     @Autowired
     AuthService authService;
 
-    @PostMapping
+    @PostMapping("/signup")
     public Response signUp(@RequestBody User user) {
         return authService.signUp(user);
     }
 
-    @GetMapping @ResponseBody
-    public Response signIn(@ModelAttribute User user) {
+    @PostMapping("/signin")
+    public Response signIn(@RequestBody User user) {
         return authService.signIn(user);
     }
 
-    @GetMapping("/social") @ResponseBody
-    public Response oAuth(@ModelAttribute User user) {
+    @PostMapping("/social")
+    public Response oAuth(@RequestBody User user) {
         return authService.oAuth(user);
     }
 

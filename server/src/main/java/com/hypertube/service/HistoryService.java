@@ -8,6 +8,7 @@ import com.hypertube.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 
 @Service
@@ -66,6 +67,7 @@ public class HistoryService {
                 historyRepository.save(res);
             } else {
                 get.setCurrent(current);
+                get.setTime(OffsetDateTime.now());
                 historyRepository.save(get);
             } return new Response(200);
         } catch (Exception e) {

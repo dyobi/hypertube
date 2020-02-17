@@ -52,7 +52,7 @@ public class AuthService {
         try {
             User valid = userRepository.findByEmail(user.getEmail());
             if (valid == null) userRepository.save(user);
-            else if (valid.getSocialType().equals(user.getSocialType())) return new Response(400);
+            else if (!valid.getSocialType().equals(user.getSocialType())) return new Response(411);
             return new Response(200, tokenService.createToken(userRepository.findByEmail(user.getEmail())));
         } catch (Exception e) {
             e.printStackTrace();
