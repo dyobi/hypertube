@@ -26,6 +26,7 @@ public class HistoryService {
     public Response getHistory(String token, Long movieId) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
             if (user == null) return new Response(400);
             History res = historyRepository.findByUserIdAndMovieId(user.getId(), movieId);
@@ -41,6 +42,7 @@ public class HistoryService {
     public Response getHistories(String token, String userName) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             ArrayList<History> res = historyRepository.findByUserId(userRepository.findByUserName(userName).getId());
             for (History re : res) {
                 re.getUser().setEmail("");
@@ -55,6 +57,7 @@ public class HistoryService {
     public Response postHistory(String token, Long movieId, int current, int duration) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
             if (user == null) return new Response(400);
             History get = historyRepository.findByUserIdAndMovieId(user.getId(), movieId);

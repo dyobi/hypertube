@@ -18,7 +18,7 @@ public class History {
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @ManyToOne(cascade = CascadeType.ALL) @JoinColumn(name = "userId")
+    @ManyToOne @JoinColumn(name = "userId")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 

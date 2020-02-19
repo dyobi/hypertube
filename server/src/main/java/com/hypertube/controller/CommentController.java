@@ -1,5 +1,6 @@
 package com.hypertube.controller;
 
+import com.hypertube.model.CommentWrapper;
 import com.hypertube.model.Response;
 import com.hypertube.service.CommentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +23,8 @@ public class CommentController {
     }
 
     @PostMapping("/comment")
-    public Response postComment(@RequestBody String token, @RequestBody Long movieId, @RequestBody String content) {
-        return commentService.postComment(token, movieId, content);
+    public Response postComment(@RequestBody CommentWrapper wrapper) {
+        return commentService.postComment(wrapper.getToken(), wrapper.getMovieId(), wrapper.getContent());
     }
 
     @DeleteMapping("/comment/{commentId}")

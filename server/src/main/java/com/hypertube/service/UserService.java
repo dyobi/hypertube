@@ -22,6 +22,7 @@ public class UserService {
     public Response getUserByToken(String token) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
             if (user == null) return new Response(400);
             else return new Response(200, user);
@@ -34,6 +35,7 @@ public class UserService {
     public Response getUserByUserName(String token, String userName) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findByUserName(userName);
             if (user == null) return new Response(400);
             else return new Response(200, user);
@@ -46,13 +48,14 @@ public class UserService {
     public Response putUser(String token, String userName, String password, String email, String firstName, String lastName) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
             if (user == null) return new Response(400);
             if (userName != null) user.setUserName(userName);
             if (password != null) user.setPassword(passwordEncoder.encode(password));
             if (email != null) user.setEmail(email);
-            user.setFirstName(firstName);
-            user.setLastName(lastName);
+            if (firstName != null) user.setFirstName(firstName);
+            if (lastName != null) user.setLastName(lastName);
             userRepository.save(user);
             return new Response(200);
         } catch (Exception e) {
@@ -64,6 +67,7 @@ public class UserService {
     public Response deleteUser(String token) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             userRepository.findById(tokenService.decodeToken(token)).ifPresent(user -> userRepository.deleteById(user.getId()));
             return new Response(200);
         } catch (Exception e) {

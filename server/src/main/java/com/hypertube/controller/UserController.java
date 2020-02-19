@@ -1,6 +1,7 @@
 package com.hypertube.controller;
 
 import com.hypertube.model.Response;
+import com.hypertube.model.UserWrapper;
 import com.hypertube.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +23,8 @@ public class UserController {
     }
 
     @PutMapping
-    public Response putUser(@RequestBody String token, @RequestBody String userName, @RequestBody String password,
-                            @RequestBody String email, @RequestBody String firstName, @RequestBody String lastName) {
-        return userService.putUser(token, userName, password, email, firstName, lastName);
+    public Response putUser(@RequestBody UserWrapper user) {
+        return userService.putUser(user.getToken(), user.getUserName(), user.getPassword(), user.getEmail(), user.getFirstName(), user.getLastName());
     }
 
     @DeleteMapping

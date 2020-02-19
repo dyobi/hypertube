@@ -10,6 +10,7 @@ import org.hibernate.annotations.OnDeleteAction;
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import java.time.OffsetDateTime;
 
 @Entity @DynamicInsert @DynamicUpdate @Getter @Setter
 public class Comment {
@@ -17,7 +18,7 @@ public class Comment {
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @ManyToOne(cascade = CascadeType.ALL) @JoinColumn(name = "userId")
+    @ManyToOne @JoinColumn(name = "userId")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
@@ -26,5 +27,7 @@ public class Comment {
 
     @NotEmpty
     private String content;
+
+    private OffsetDateTime time = OffsetDateTime.now();
 
 }
