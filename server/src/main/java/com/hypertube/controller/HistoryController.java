@@ -1,5 +1,6 @@
 package com.hypertube.controller;
 
+import com.hypertube.model.HistoryWrapper;
 import com.hypertube.model.Response;
 import com.hypertube.service.HistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +23,8 @@ public class HistoryController {
     }
 
     @PostMapping("/history")
-    public Response postHistory(@RequestBody String token, @RequestBody Long movieId, @RequestBody int current, @RequestBody int duration) {
-        return historyService.postHistory(token, movieId, current, duration);
+    public Response postHistory(@RequestBody HistoryWrapper historyWrapper) {
+        return historyService.postHistory(historyWrapper.getToken(), historyWrapper.getMovieId(), historyWrapper.getCurrent(), historyWrapper.getDuration());
     }
 
 }
