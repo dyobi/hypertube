@@ -60,11 +60,7 @@ public class HistoryService {
             else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
             if (user == null) return new Response(400);
-
             History history = historyRepository.findByUserIdAndMovieId(user.getId(), movieId);
-
-
-
             if (history == null) {
                 History res = new History();
                 res.setUser(user);
