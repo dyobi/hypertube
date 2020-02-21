@@ -60,8 +60,12 @@ public class HistoryService {
             else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
             User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
             if (user == null) return new Response(400);
-            History get = historyRepository.findByUserIdAndMovieId(user.getId(), movieId);
-            if (get == null) {
+
+            History history = historyRepository.findByUserIdAndMovieId(user.getId(), movieId);
+
+
+
+            if (history == null) {
                 History res = new History();
                 res.setUser(user);
                 res.setMovieId(movieId);
@@ -69,9 +73,10 @@ public class HistoryService {
                 res.setDuration(duration);
                 historyRepository.save(res);
             } else {
-                get.setCurrent(current);
-                get.setTime(OffsetDateTime.now());
-                historyRepository.save(get);
+                history.setCurrent(current);
+                history.setDuration(duration);
+                history.setTime(OffsetDateTime.now());
+                historyRepository.save(history);
             } return new Response(200);
         } catch (Exception e) {
             e.printStackTrace();

@@ -8,7 +8,6 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.time.OffsetDateTime;
 
@@ -25,10 +24,10 @@ public class History {
     @NotNull
     private Long movieId;
 
-    @NotEmpty
+    @NotNull
     private int current;
 
-    @NotEmpty
+    @NotNull
     private int duration;
 
     private OffsetDateTime time = OffsetDateTime.now();
