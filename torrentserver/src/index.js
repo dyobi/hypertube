@@ -1,5 +1,3 @@
-/* global FileList */
-
 const { EventEmitter } = require('events')
 const concat = require('simple-concat')
 const createTorrent = require('create-torrent')

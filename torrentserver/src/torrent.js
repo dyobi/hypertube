@@ -487,11 +487,6 @@ class Torrent extends EventEmitter {
     }
   }
 
-  /*
-   * TODO: remove this
-   * Gets the last modified time of every file on disk for this torrent.
-   * Only valid in Node, not in the browser.
-   */
   getFileModtimes (cb) {
     const ret = []
     parallelLimit(this.files.map((file, index) => cb => {
@@ -501,7 +496,6 @@ class Torrent extends EventEmitter {
         cb(null)
       })
     }), FILESYSTEM_CONCURRENCY, err => {
-      // this._debug('done getting file modtimes')
       cb(err, ret)
     })
   }
@@ -513,16 +507,13 @@ class Torrent extends EventEmitter {
       this.store.get(index, (err, buf) => {
         if (this.destroyed) return cb(new Error('torrent is destroyed'))
 
-        if (err) return process.nextTick(cb, null) // ignore error
+        if (err) return process.nextTick(cb, null)
         sha1(buf, hash => {
           if (this.destroyed) return cb(new Error('torrent is destroyed'))
 
           if (hash === this._hashes[index]) {
             if (!this.pieces[index]) return cb(null)
-            // this._debug('piece verified %s', index)
             this._markVerified(index)
-          // } else {
-          //   this._debug('piece invalid %s', index)
           }
           cb(null)
         })
@@ -557,23 +548,12 @@ class Torrent extends EventEmitter {
     this.bitfield.set(index, true)
   }
 
-  /**
-   * Called when the metadata, listening server, and underlying chunk store is initialized.
-   */
   _onStore () {
-    // if (this.destroyed) return
-    // this._debug('on store')
-
-    // Start discovery before emitting 'ready'
     this._startDiscovery()
 
     this.ready = true
     this.emit('ready')
-
-    // Files may start out done if the file was already in the store
     this._checkDone()
-
-    // In case any selections were made before torrent was ready
     this._updateSelections()
   }
 
@@ -584,7 +564,6 @@ class Torrent extends EventEmitter {
   _destroy (err, cb) {
     if (this.destroyed) return
     this.destroyed = true
-    // this._debug('destroy')
 
     this.client._remove(this)
 
@@ -625,13 +604,6 @@ class Torrent extends EventEmitter {
     parallel(tasks, cb)
 
     if (err) {
-      // Torrent errors are emitted at `torrent.on('error')`. If there are no 'error'
-      // event handlers on the torrent instance, then the error will be emitted at
-      // `client.on('error')`. This prevents throwing an uncaught exception
-      // (unhandled 'error' event), but it makes it impossible to distinguish client
-      // errors versus torrent errors. Torrent errors are not fatal, and the client
-      // is still usable afterwards. Therefore, always listen for errors in both
-      // places (`client.on('error')` and `torrent.on('error')`).
       if (this.listenerCount('error') === 0) {
         this.client.emit('error', err)
       } else {
@@ -662,7 +634,6 @@ class Torrent extends EventEmitter {
         try {
           parts = addrToIPPort(peer)
         } catch (e) {
-          // this._debug('ignoring peer: invalid %s', peer)
           this.emit('invalidPeer', peer)
           return false
         }
@@ -672,7 +643,6 @@ class Torrent extends EventEmitter {
       }
 
       if (host && this.client.blocked.contains(host)) {
-        // this._debug('ignoring peer: blocked %s', peer)
         if (typeof peer !== 'string') peer.destroy()
         this.emit('blockedPeer', peer)
         return false
@@ -694,31 +664,24 @@ class Torrent extends EventEmitter {
       return null
     }
     if (typeof peer === 'string' && !this._validAddr(peer)) {
-      // this._debug('ignoring peer: invalid %s', peer)
       return null
     }
 
     const id = (peer && peer.id) || peer
     if (this._peers[id]) {
-      // this._debug('ignoring peer: duplicate (%s)', id)
       if (typeof peer !== 'string') peer.destroy()
       return null
     }
 
     if (this.paused) {
-      // this._debug('ignoring peer: torrent is paused')
       if (typeof peer !== 'string') peer.destroy()
       return null
     }
 
-    // this._debug('add peer %s', id)
-
     let newPeer
     if (typeof peer === 'string') {
-      // `peer` is an addr ("ip:port" string)
       newPeer = Peer.createTCPOutgoingPeer(peer, this)
     } else {
-      // `peer` is a WebRTC connection (simple-peer)
       newPeer = Peer.createWebRTCPeer(peer, this)
     }
 
@@ -726,7 +689,6 @@ class Torrent extends EventEmitter {
     this._peersLength += 1
 
     if (typeof peer === 'string') {
-      // `peer` is an addr ("ip:port" string)
       this._queue.push(newPeer)
       this._drain()
     }
@@ -749,8 +711,6 @@ class Torrent extends EventEmitter {
       return
     }
 
-    // this._debug('add web seed %s', url)
-
     const newPeer = Peer.createWebSeedPeer(url, this)
     this._peers[newPeer.id] = newPeer
     this._peersLength += 1
@@ -758,15 +718,9 @@ class Torrent extends EventEmitter {
     this.emit('peer', url)
   }
 
-  /**
-   * Called whenever a new incoming TCP peer connects to this torrent swarm. Called with a
-   * peer that has already sent a handshake.
-   */
   _addIncomingPeer (peer) {
     if (this.destroyed) return peer.destroy(new Error('torrent is destroyed'))
     if (this.paused) return peer.destroy(new Error('torrent is paused'))
-
-    // this._debug('add incoming peer %s', peer.id)
 
     this._peers[peer.id] = peer
     this._peersLength += 1
@@ -778,14 +732,11 @@ class Torrent extends EventEmitter {
 
     if (!peer) return
 
-    // this._debug('removePeer %s', id)
-
     delete this._peers[id]
     this._peersLength -= 1
 
     peer.destroy()
 
-    // If torrent swarm was at capacity before, try to open a new connection now
     this._drain()
   }
 
@@ -796,8 +747,6 @@ class Torrent extends EventEmitter {
       throw new Error(`invalid selection ${start} : ${end}`)
     }
     priority = Number(priority) || 0
-
-    // this._debug('select %s-%s (priority %s)', start, end, priority)
 
     this._selections.push({
       from: start,
@@ -816,7 +765,6 @@ class Torrent extends EventEmitter {
     if (this.destroyed) throw new Error('torrent is destroyed')
 
     priority = Number(priority) || 0
-    // this._debug('deselect %s-%s (priority %s)', start, end, priority)
 
     for (let i = 0; i < this._selections.length; ++i) {
       const s = this._selections[i]
@@ -832,8 +780,6 @@ class Torrent extends EventEmitter {
   critical (start, end) {
     if (this.destroyed) throw new Error('torrent is destroyed')
 
-    // this._debug('critical %s-%s', start, end)
-
     for (let i = start; i <= end; ++i) {
       this._critical[i] = true
     }
@@ -842,7 +788,6 @@ class Torrent extends EventEmitter {
   }
 
   _onWire (wire, addr) {
-    // this._debug('got wire %s (%s)', wire._debugId, addr || 'Unknown')
 
     wire.on('download', downloaded => {
       if (this.destroyed) return
@@ -865,92 +810,62 @@ class Torrent extends EventEmitter {
     this.wires.push(wire)
 
     if (addr) {
-      // Sometimes RTCPeerConnection.getStats() doesn't return an ip:port for peers
       const parts = addrToIPPort(addr)
       wire.remoteAddress = parts[0]
       wire.remotePort = parts[1]
     }
 
-    // When peer sends PORT message, add that DHT node to routing table
     if (this.client.dht && this.client.dht.listening) {
       wire.on('port', port => {
         if (this.destroyed || this.client.dht.destroyed) {
           return
         }
-        // if (!wire.remoteAddress) {
-        //   return this._debug('ignoring PORT from peer with no address')
-        // }
-        // if (port === 0 || port > 65536) {
-        //   return this._debug('ignoring invalid PORT from peer')
-        // }
 
-        // this._debug('port: %s (from %s)', port, addr)
         this.client.dht.addNode({ host: wire.remoteAddress, port })
       })
     }
 
     wire.on('timeout', () => {
-      // this._debug('wire timeout (%s)', addr)
-      // TODO: this might be destroying wires too eagerly
       wire.destroy()
     })
 
-    // Timeout for piece requests to this peer
     wire.setTimeout(PIECE_TIMEOUT, true)
 
-    // Send KEEP-ALIVE (every 60s) so peers will not disconnect the wire
     wire.setKeepAlive(true)
 
-    // use ut_metadata extension
     wire.use(utMetadata(this.metadata))
-
-    // wire.ut_metadata.on('warning', err => {
-    //   this._debug('ut_metadata warning: %s', err.message)
-    // })
 
     if (!this.metadata) {
       wire.ut_metadata.on('metadata', metadata => {
-        // this._debug('got metadata via ut_metadata')
         this._onMetadata(metadata)
       })
       wire.ut_metadata.fetch()
     }
 
-    // use ut_pex extension if the torrent is not flagged as private
     if (typeof utPex === 'function' && !this.private) {
       wire.use(utPex())
 
       wire.ut_pex.on('peer', peer => {
-        // Only add potential new peers when we're not seeding
         if (this.done) return
-        // this._debug('ut_pex: got peer: %s (from %s)', peer, addr)
         this.addPeer(peer)
       })
 
       wire.ut_pex.on('dropped', peer => {
-        // the remote peer believes a given peer has been dropped from the torrent swarm.
-        // if we're not currently connected to it, then remove it from the queue.
         const peerObj = this._peers[peer]
         if (peerObj && !peerObj.connected) {
-          // this._debug('ut_pex: dropped peer: %s (from %s)', peer, addr)
           this.removePeer(peer)
         }
       })
 
       wire.once('close', () => {
-        // Stop sending updates to remote peer
         wire.ut_pex.reset()
       })
     }
 
-    // Hook to allow user-defined `bittorrent-protocol` extensions
-    // More info: https://github.com/webtorrent/bittorrent-protocol#extension-api
     this.emit('wire', wire, addr)
 
     if (this.metadata) {
       process.nextTick(() => {
-        // This allows wire.handshake() to be called (by Peer.onHandshake) before any
-        // messages get sent on the wire
         this._onWireWithMetadata(wire)
       })
     }
@@ -978,7 +893,7 @@ class Torrent extends EventEmitter {
         if (!wire.peerPieces.get(i)) return
       }
       wire.isSeeder = true
-      wire.choke() // always choke seeders
+      wire.choke()
     }
 
     wire.on('bitfield', () => {
@@ -1012,22 +927,20 @@ class Torrent extends EventEmitter {
 
     wire.on('request', (index, offset, length, cb) => {
       if (length > MAX_BLOCK_LENGTH) {
-        // Per spec, disconnect from peers that request >128KB
         return wire.destroy()
       }
       if (this.pieces[index]) return
       this.store.get(index, { offset, length }, cb)
     })
 
-    wire.bitfield(this.bitfield) // always send bitfield (required)
-    wire.uninterested() // always start out uninterested (as per protocol)
+    wire.bitfield(this.bitfield)
+    wire.uninterested()
 
-    // Send PORT message to peers that support DHT
     if (wire.peerExtensions.dht && this.client.dht && this.client.dht.listening) {
       wire.port(this.client.dht.address().port)
     }
 
-    if (wire.type !== 'webSeed') { // do not choke on webseeds
+    if (wire.type !== 'webSeed') {
       timeoutId = setTimeout(onChokeTimeout, CHOKE_TIMEOUT)
       if (timeoutId.unref) timeoutId.unref()
     }
@@ -1036,9 +949,6 @@ class Torrent extends EventEmitter {
     updateSeedStatus()
   }
 
-  /**
-   * Called on selection changes.
-   */
   _updateSelections () {
     if (!this.ready || this.destroyed) return
 
@@ -1049,15 +959,11 @@ class Torrent extends EventEmitter {
     this._update()
   }
 
-  /**
-   * Garbage collect selections with respect to the store's current state.
-   */
   _gcSelections () {
     for (let i = 0; i < this._selections.length; ++i) {
       const s = this._selections[i]
       const oldOffset = s.offset
 
-      // check for newly downloaded pieces in selection
       while (this.bitfield.get(s.from + s.offset) && s.from + s.offset < s.to) {
         s.offset += 1
       }
@@ -1066,8 +972,8 @@ class Torrent extends EventEmitter {
       if (s.to !== s.from + s.offset) continue
       if (!this.bitfield.get(s.from + s.offset)) continue
 
-      this._selections.splice(i, 1) // remove fully downloaded selection
-      i -= 1 // decrement i to offset splice
+      this._selections.splice(i, 1)
+      i -= 1
 
       s.notify()
       this._updateInterest()
@@ -1076,9 +982,6 @@ class Torrent extends EventEmitter {
     if (!this._selections.length) this.emit('idle')
   }
 
-  /**
-   * Update interested status for all peers.
-   */
   _updateInterest () {
     const prev = this._amInterested
     this._amInterested = !!this._selections.length
@@ -1101,13 +1004,9 @@ class Torrent extends EventEmitter {
     else this.emit('uninterested')
   }
 
-  /**
-   * Heartbeat to update all peers and their requests.
-   */
   _update () {
     if (this.destroyed) return
 
-    // update wires in random order for better request distribution
     const ite = randomIterate(this.wires)
     let wire
     while ((wire = ite())) {
@@ -1125,11 +1024,7 @@ class Torrent extends EventEmitter {
     }
   }
 
-  /**
-   * Attempts to update a peer's requests
-   */
   _updateWire (wire) {
-    // to allow function hoisting
     const self = this
 
     if (wire.peerChoking) return
@@ -1145,7 +1040,6 @@ class Torrent extends EventEmitter {
       return i => i >= start && i <= end && !(i in tried) && wire.peerPieces.get(i) && (!rank || rank(i))
     }
 
-    // TODO: Do we need both validateWire and trySelectWire?
     function validateWire () {
       if (wire.requests.length) return
 
@@ -1175,9 +1069,6 @@ class Torrent extends EventEmitter {
           }
         }
       }
-
-      // TODO: wire failed to validate as useful; should we close it?
-      // probably not, since 'have' and 'bitfield' messages might be coming
     }
 
     function speedRanker () {
@@ -1240,7 +1131,6 @@ class Torrent extends EventEmitter {
             piece = self._rarityMap.getRarestPiece(filter)
             if (piece < 0) break
 
-            // request all non-reserved blocks in this piece
             while (self._request(wire, piece, self._critical[piece] || hotswap)) {}
 
             if (wire.requests.length < maxOutstandingRequests) {
@@ -1256,7 +1146,6 @@ class Torrent extends EventEmitter {
           for (piece = next.from + next.offset; piece <= next.to; piece++) {
             if (!wire.peerPieces.get(piece) || !rank(piece)) continue
 
-            // request all non-reserved blocks in piece
             while (self._request(wire, piece, self._critical[piece] || hotswap)) {}
 
             if (wire.requests.length < maxOutstandingRequests) continue
@@ -1271,10 +1160,6 @@ class Torrent extends EventEmitter {
     }
   }
 
-  /**
-   * Called periodically to update the choked status of all peers, handling optimistic
-   * unchoking as described in BEP3.
-   */
   _rechoke () {
     if (!this.ready) return
 
@@ -1304,7 +1189,6 @@ class Torrent extends EventEmitter {
       if (peers[i].wire.peerInterested) unchokeInterested += 1
     }
 
-    // Optimistically unchoke a peer
     if (!this._rechokeOptimisticWire && i < peers.length && this._rechokeNumSlots) {
       const candidates = peers.slice(i).filter(peer => peer.wire.peerInterested)
       const optimistic = candidates[randomInt(candidates.length)]
@@ -1316,7 +1200,6 @@ class Torrent extends EventEmitter {
       }
     }
 
-    // Unchoke best peers
     peers.forEach(peer => {
       if (peer.wire.amChoking !== peer.isChoked) {
         if (peer.isChoked) peer.wire.choke()
@@ -1325,30 +1208,22 @@ class Torrent extends EventEmitter {
     })
 
     function rechokeSort (peerA, peerB) {
-      // Prefer higher download speed
       if (peerA.downloadSpeed !== peerB.downloadSpeed) {
         return peerB.downloadSpeed - peerA.downloadSpeed
       }
 
-      // Prefer higher upload speed
       if (peerA.uploadSpeed !== peerB.uploadSpeed) {
         return peerB.uploadSpeed - peerA.uploadSpeed
       }
 
-      // Prefer unchoked
       if (peerA.wire.amChoking !== peerB.wire.amChoking) {
         return peerA.wire.amChoking ? 1 : -1
       }
 
-      // Random order
       return peerA.salt - peerB.salt
     }
   }
 
-  /**
-   * Attempts to cancel a slow block request from another wire such that the
-   * given wire may effectively swap out the request for one of its own.
-   */
   _hotswap (wire, index) {
     const speed = wire.downloadSpeed()
     if (speed < Piece.BLOCK_LENGTH) return false
@@ -1392,9 +1267,6 @@ class Torrent extends EventEmitter {
     return true
   }
 
-  /**
-   * Attempts to request a block from the given wire.
-   */
   _request (wire, index, hotswap) {
     const self = this
     const numRequests = wire.requests.length
@@ -1410,7 +1282,6 @@ class Torrent extends EventEmitter {
       : getBlockPipelineLength(wire, PIPELINE_MAX_DURATION)
 
     if (numRequests >= maxOutstandingRequests) return false
-    // var endGame = (wire.requests.length === 0 && self.store.numMissing < 30)
 
     const piece = self.pieces[index]
     let reservation = isWebSeed ? piece.reserveRemaining() : piece.reserve()
@@ -1432,7 +1303,6 @@ class Torrent extends EventEmitter {
     wire.request(index, chunkOffset, chunkLength, function onChunk (err, chunk) {
       if (self.destroyed) return
 
-      // TODO: what is this for?
       if (!self.ready) return self.once('ready', () => { onChunk(err, chunk) })
 
       if (r[i] === wire) r[i] = null
@@ -1440,33 +1310,20 @@ class Torrent extends EventEmitter {
       if (piece !== self.pieces[index]) return onUpdateTick()
 
       if (err) {
-        // self._debug(
-        //   'error getting piece %s (offset: %s length: %s) from %s: %s',
-        //   index, chunkOffset, chunkLength, `${wire.remoteAddress}:${wire.remotePort}`,
-        //   err.message
-        // )
         isWebSeed ? piece.cancelRemaining(reservation) : piece.cancel(reservation)
         onUpdateTick()
         return
       }
 
-      // self._debug(
-      //   'got piece %s (offset: %s length: %s) from %s',
-      //   index, chunkOffset, chunkLength, `${wire.remoteAddress}:${wire.remotePort}`
-      // )
-
       if (!piece.set(reservation, chunk, wire)) return onUpdateTick()
 
       const buf = piece.flush()
-
-      // TODO: might need to set self.pieces[index] = null here since sha1 is async
 
       sha1(buf, hash => {
         if (self.destroyed) return
 
         if (hash === self._hashes[index]) {
           if (!self.pieces[index]) return
-          // self._debug('piece verified %s', index)
 
           self.pieces[index] = null
           self._reservations[index] = null
@@ -1478,8 +1335,6 @@ class Torrent extends EventEmitter {
             wire.have(index)
           })
 
-          // We also check `self.destroyed` since `torrent.destroy()` could have been
-          // called in the `torrent.on('done')` handler, triggered by `_checkDone()`.
           if (self._checkDone() && !self.destroyed) self.discovery.complete()
         } else {
           self.pieces[index] = new Piece(piece.length)
@@ -1499,7 +1354,6 @@ class Torrent extends EventEmitter {
   _checkDone () {
     if (this.destroyed) return
 
-    // are any new files done?
     this.files.forEach(file => {
       if (file.done) return
       for (let i = file._startPiece; i <= file._endPiece; ++i) {
@@ -1507,11 +1361,8 @@ class Torrent extends EventEmitter {
       }
       file.done = true
       file.emit('done')
-      // this._debug(`file done: ${file.name}`)
     })
 
-    // is the torrent done? (if all current selections are satisfied, or there are
-    // no selections, then torrent is done)
     let done = true
     for (let i = 0; i < this._selections.length; i++) {
       const selection = this._selections[i]
@@ -1525,7 +1376,6 @@ class Torrent extends EventEmitter {
     }
     if (!this.done && done) {
       this.done = true
-      // this._debug(`torrent done: ${this.infoHash}`)
       this.emit('done')
     }
     this._gcSelections()
@@ -1561,41 +1411,23 @@ class Torrent extends EventEmitter {
 
   pause () {
     if (this.destroyed) return
-    // this._debug('pause')
     this.paused = true
   }
 
   resume () {
     if (this.destroyed) return
-    // this._debug('resume')
     this.paused = false
     this._drain()
   }
 
-  // _debug () {
-  //   const args = [].slice.call(arguments)
-  //   args[0] = `[${this.client._debugId}] [${this._debugId}] ${args[0]}`
-  //   debug(...args)
-  // }
-
-  /**
-   * Pop a peer off the FIFO queue and connect to it. When _drain() gets called,
-   * the queue will usually have only one peer in it, except when there are too
-   * many peers (over `this.maxConns`) in which case they will just sit in the
-   * queue until another connection closes.
-   */
   _drain () {
-    // this._debug('_drain numConns %s maxConns %s', this._numConns, this.client.maxConns)
     if (typeof net.connect !== 'function' || this.destroyed || this.paused ||
         this._numConns >= this.client.maxConns) {
       return
     }
-    // this._debug('drain (%s queued, %s/%s peers)', this._numQueued, this.numPeers, this.client.maxConns)
 
     const peer = this._queue.shift()
-    if (!peer) return // queue could be empty
-
-    // this._debug('tcp connect attempt to %s', peer.addr)
+    if (!peer) return
 
     const parts = addrToIPPort(peer.addr)
     const opts = {
@@ -1609,25 +1441,14 @@ class Torrent extends EventEmitter {
     conn.once('error', err => { peer.destroy(err) })
     peer.startConnectTimeout()
 
-    // When connection closes, attempt reconnect after timeout (with exponential backoff)
     conn.on('close', () => {
       if (this.destroyed) return
 
-      // TODO: If torrent is done, do not try to reconnect after a timeout
-
       if (peer.retries >= RECONNECT_WAIT.length) {
-        // this._debug(
-        //   'conn %s closed: will not re-add (max %s attempts)',
-        //   peer.addr, RECONNECT_WAIT.length
-        // )
         return
       }
 
       const ms = RECONNECT_WAIT[peer.retries]
-      // this._debug(
-      //   'conn %s closed: will re-add to queue in %sms (attempt %s)',
-      //   peer.addr, ms, peer.retries + 1
-      // )
 
       const reconnectTimeout = setTimeout(() => {
         const newPeer = this._addPeer(peer.addr)
@@ -1637,11 +1458,6 @@ class Torrent extends EventEmitter {
     })
   }
 
-  /**
-   * Returns `true` if string is valid IPv4/6 address.
-   * @param {string} addr
-   * @return {boolean}
-   */
   _validAddr (addr) {
     let parts
     try {
@@ -1664,9 +1480,6 @@ function getPiecePipelineLength (wire, duration, pieceLength) {
   return 1 + Math.ceil(duration * wire.downloadSpeed() / pieceLength)
 }
 
-/**
- * Returns a random integer in [0,high)
- */
 function randomInt (high) {
   return Math.random() * high | 0
 }

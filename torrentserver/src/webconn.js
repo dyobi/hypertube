@@ -1,5 +1,4 @@
 const BitField = require('bitfield')
-// const debug = require('debug')('webtorrent:webconn')
 const get = require('simple-get')
 const sha1 = require('simple-sha1')
 const Wire = require('bittorrent-protocol')
@@ -32,29 +31,19 @@ class WebConn extends Wire {
     })
 
     this.once('interested', () => {
-      // debug('interested')
       this.unchoke()
     })
 
-    // this.on('uninterested', () => { debug('uninterested') })
-    // this.on('choke', () => { debug('choke') })
-    // this.on('unchoke', () => { debug('unchoke') })
-    // this.on('bitfield', () => { debug('bitfield') })
-
     this.on('request', (pieceIndex, offset, length, callback) => {
-      // debug('request pieceIndex=%d offset=%d length=%d', pieceIndex, offset, length)
       this.httpRequest(pieceIndex, offset, length, callback)
     })
   }
 
   httpRequest (pieceIndex, offset, length, cb) {
     const pieceOffset = pieceIndex * this._torrent.pieceLength
-    const rangeStart = pieceOffset + offset /* offset within whole torrent */
+    const rangeStart = pieceOffset + offset
     const rangeEnd = rangeStart + length - 1
 
-    // Web seed URL format:
-    // For single-file torrents, make HTTP range requests directly to the web seed URL
-    // For multi-file torrents, add the torrent folder and file name to the URL
     const files = this._torrent.files
     let requests
     if (files.length <= 1) {
@@ -85,9 +74,6 @@ class WebConn extends Wire {
       })
     }
 
-    // Now make all the HTTP requests we need in order to load this piece
-    // Usually that's one requests, but sometimes it will be multiple
-    // Send requests in parallel and wait for them all to come back
     let numRequestsSucceeded = 0
     let hasError = false
 
@@ -100,10 +86,6 @@ class WebConn extends Wire {
       const url = request.url
       const start = request.start
       const end = request.end
-      // debug(
-      //   'Requesting url=%s pieceIndex=%d offset=%d length=%d start=%d end=%d',
-      //   url, pieceIndex, offset, length, start, end
-      // )
       const opts = {
         url,
         method: 'GET',
@@ -117,14 +99,10 @@ class WebConn extends Wire {
           hasError = true
           return cb(new Error(`Unexpected HTTP status code ${res.statusCode}`))
         }
-        // debug('Got data of length %d', data.length)
 
         if (requests.length === 1) {
-          // Common case: fetch piece in a single HTTP request, return directly
           cb(null, data)
         } else {
-          // Rare case: reconstruct multiple HTTP requests across 2+ files into one
-          // piece buffer
           data.copy(ret, request.fileOffsetInRange)
           if (++numRequestsSucceeded === requests.length) {
             cb(null, ret)
@@ -134,15 +112,6 @@ class WebConn extends Wire {
       get.concat(opts, (err, res, data) => {
         if (hasError) return
         if (err) {
-          // Browsers allow HTTP redirects for simple cross-origin
-          // requests but not for requests that require preflight.
-          // Use a simple request to unravel any redirects and get the
-          // final URL.  Retry the original request with the new URL if
-          // it's different.
-          //
-          // This test is imperfect but it's simple and good for common
-          // cases.  It catches all cross-origin cases but matches a few
-          // same-origin cases too.
           if (typeof window === 'undefined' || url.startsWith(`${window.location.origin}/`)) {
             hasError = true
             return cb(err)
