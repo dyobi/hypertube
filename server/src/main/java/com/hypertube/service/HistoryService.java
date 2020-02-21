@@ -23,22 +23,6 @@ public class HistoryService {
     @Autowired
     TokenService tokenService;
 
-    public Response getHistory(String token, Long movieId) {
-        try {
-            if (!tokenService.checkToken(token)) return new Response(401);
-            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
-            User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
-            if (user == null) return new Response(400);
-            History res = historyRepository.findByUserIdAndMovieId(user.getId(), movieId);
-            res.getUser().setEmail("");
-            res.getUser().setPassword("");
-            return new Response(200, res);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new Response(400);
-        }
-    }
-
     public Response getHistories(String token, String userName) {
         try {
             if (!tokenService.checkToken(token)) return new Response(401);
