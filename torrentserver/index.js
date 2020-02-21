@@ -2,8 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const TorrentService = require('./src');
+const fs = require('fs');
+const https = require('https');
+const privateKey = fs.readFileSync('cert/key.pem', 'utf8');
+const certificate = fs.readFileSync('cert/hypertube.pem', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
+const server = https.createServer(credentials, app);
 
-const STREAM_PORT = 8444;
+const STREAM_PORT = 8445;
 
 app.use(cors());
 
@@ -16,6 +22,22 @@ client.on('error', err => {
 app.get('/stream/add/:magnet', (req, res) => {
 
     const magnet = req.params.magnet;
+
+    const tor = client.get(magnet);
+
+    if (tor != null) {
+        let max = {
+            name: '',
+            length: 0
+        };
+        for (i = 0; i < tor.files.length; i++) {
+            if (max.length < tor.files[i].length)
+                max = {
+                    name: tor.files[i].name,
+                    length: tor.files[i].length
+                };
+        } res.json(max);
+    }
 
     client.add(magnet, torrent => {
         console.log(`magnet(${magnet}) has added`);
@@ -31,7 +53,6 @@ app.get('/stream/add/:magnet', (req, res) => {
                     length: data.length
                 };
         });
-
         res.json(max);
     });
 });
@@ -90,14 +111,4 @@ app.get('/stream/play/:magnet/:filename', (req, res, next) => {
     });
 });
 
-app.get('/stream/delete/:magnet', (req, res, next) => {
-    let magnet = req.params.magnet;
-
-    client.remove(magnet, () => {
-        console.log(`magnet(${magnet}) has removed`);
-        res.write();
-    });
-});
-
-
-app.listen(STREAM_PORT, () => console.log(`Torrent server is listening on ${STREAM_PORT}`));
+server.listen(STREAM_PORT, () => console.log(`Torrent server is listening on ${STREAM_PORT}`));

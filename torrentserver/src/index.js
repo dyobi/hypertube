@@ -237,6 +237,7 @@ class TorrentService extends EventEmitter {
     const torrent = new Torrent(torrentId, this, opts)
     this.torrents.push(torrent)
 
+
     torrent.once('_infoHash', onInfoHash)
     torrent.once('ready', onReady)
     torrent.once('close', onClose)
