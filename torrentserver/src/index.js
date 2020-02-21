@@ -74,7 +74,7 @@ class TorrentService extends EventEmitter {
     this._downloadSpeed = speedometer()
     this._uploadSpeed = speedometer()
 
-    if (opts.dht !== false && typeof DHT === 'function') {used
+    if (opts.dht !== false && typeof DHT === 'function') {
       this.dht = new DHT(Object.assign({}, { nodeId: this.nodeId }, opts.dht))
 
       this.dht.once('error', err => {
