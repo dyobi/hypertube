@@ -1,4 +1,3 @@
-// const debug = require('debug')('webtorrent:file-stream')
 const stream = require('readable-stream')
 
 class FileStream extends stream.Readable {
@@ -48,7 +47,6 @@ class FileStream extends stream.Readable {
     this._torrent.store.get(p, (err, buffer) => {
       this._notifying = false
       if (this.destroyed) return
-      // debug('read %s (length %s) (err %s)', p, buffer.length, err && err.message)
 
       if (err) return this._destroy(err)
 
@@ -62,7 +60,6 @@ class FileStream extends stream.Readable {
       }
       this._missing -= buffer.length
 
-      // debug('pushing buffer of length %s', buffer.length)
       this._reading = false
       this.push(buffer)
 

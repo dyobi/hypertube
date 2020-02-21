@@ -1,18 +1,15 @@
-/* global Blob */
-
 const addrToIPPort = require('addr-to-ip-port')
 const BitField = require('bitfield')
 const ChunkStoreWriteStream = require('chunk-store-stream/write')
-// const debug = require('debug')('webtorrent:torrent')
 const Discovery = require('torrent-discovery')
 const EventEmitter = require('events').EventEmitter
 const fs = require('fs')
-const FSChunkStore = require('fs-chunk-store') // browser: `memory-chunk-store`
+const FSChunkStore = require('fs-chunk-store')
 const get = require('simple-get')
 const ImmediateChunkStore = require('immediate-chunk-store')
 const MultiStream = require('multistream')
-const net = require('net') // browser exclude
-const os = require('os') // browser exclude
+const net = require('net')
+const os = require('os')
 const parallel = require('run-parallel')
 const parallelLimit = require('run-parallel-limit')
 const parseTorrent = require('parse-torrent')
@@ -24,13 +21,13 @@ const sha1 = require('simple-sha1')
 const speedometer = require('speedometer')
 const uniq = require('uniq')
 const utMetadata = require('ut_metadata')
-const utPex = require('ut_pex') // browser exclude
+const utPex = require('ut_pex')
 const parseRange = require('parse-numeric-range')
 
 const File = require('./file')
 const Peer = require('./peer')
 const RarityMap = require('./rarity-map')
-const Server = require('./server') // browser exclude
+const Server = require('./server')
 
 const MAX_BLOCK_LENGTH = 128 * 1024
 const PIECE_TIMEOUT = 30000
@@ -40,10 +37,9 @@ const SPEED_THRESHOLD = 3 * Piece.BLOCK_LENGTH
 const PIPELINE_MIN_DURATION = 0.5
 const PIPELINE_MAX_DURATION = 1
 
-const RECHOKE_INTERVAL = 10000 // 10 seconds
-const RECHOKE_OPTIMISTIC_DURATION = 2 // 30 seconds
+const RECHOKE_INTERVAL = 10000
+const RECHOKE_OPTIMISTIC_DURATION = 2
 
-// IndexedDB chunk stores used in the browser benefit from maximum concurrency
 const FILESYSTEM_CONCURRENCY = process.browser ? Infinity : 2
 
 const RECONNECT_WAIT = [1000, 5000, 15000]
@@ -62,7 +58,6 @@ class Torrent extends EventEmitter {
   constructor (torrentId, client, opts) {
     super()
 
-    // this._debugId = 'unknown infohash'
     this.client = client
 
     this.announce = opts.announce
@@ -98,29 +93,24 @@ class Torrent extends EventEmitter {
     this._selections = []
     this._critical = []
 
-    this.wires = [] // open wires (added *after* handshake)
+    this.wires = []
 
-    this._queue = [] // queue of outgoing tcp peers to connect to
-    this._peers = {} // connected peers (addr/peerId -> Peer)
-    this._peersLength = 0 // number of elements in `this._peers` (cache, for perf)
+    this._queue = []
+    this._peers = {}
+    this._peersLength = 0
 
-    // stats
     this.received = 0
     this.uploaded = 0
     this._downloadSpeed = speedometer()
     this._uploadSpeed = speedometer()
 
-    // for cleanup
     this._servers = []
     this._xsRequests = []
 
-    // TODO: remove this and expose a hook instead
-    // optimization: don't recheck every file if it hasn't changed
     this._fileModtimes = opts.fileModtimes
 
     if (torrentId !== null) this._onTorrentId(torrentId)
 
-    // this._debug('new torrent')
   }
 
   get timeRemaining () {
@@ -133,27 +123,15 @@ class Torrent extends EventEmitter {
     if (!this.bitfield) return 0
     let downloaded = 0
     for (let index = 0, len = this.pieces.length; index < len; ++index) {
-      if (this.bitfield.get(index)) { // verified data
+      if (this.bitfield.get(index)) {
         downloaded += (index === len - 1) ? this.lastPieceLength : this.pieceLength
-      } else { // "in progress" data
+      } else {
         const piece = this.pieces[index]
         downloaded += (piece.length - piece.missing)
       }
     }
     return downloaded
   }
-
-  // TODO: re-enable this. The number of missing pieces. Used to implement 'end game' mode.
-  // Object.defineProperty(Storage.prototype, 'numMissing', {
-  //   get: function () {
-  //     var self = this
-  //     var numMissing = self.pieces.length
-  //     for (var index = 0, len = self.pieces.length; index < len; index++) {
-  //       numMissing -= self.bitfield.get(index)
-  //     }
-  //     return numMissing
-  //   }
-  // })
 
   get downloadSpeed () { return this._downloadSpeed() }
 
@@ -185,7 +163,6 @@ class Torrent extends EventEmitter {
     return numConns
   }
 
-  // TODO: remove in v1
   get swarm () {
     console.warn('WebTorrent: `torrent.swarm` is deprecated. Use `torrent` directly instead.')
     return this
@@ -197,16 +174,12 @@ class Torrent extends EventEmitter {
     let parsedTorrent
     try { parsedTorrent = parseTorrent(torrentId) } catch (err) {}
     if (parsedTorrent) {
-      // Attempt to set infoHash property synchronously
       this.infoHash = parsedTorrent.infoHash
-      // this._debugId = parsedTorrent.infoHash.toString('hex').substring(0, 7)
       process.nextTick(() => {
         if (this.destroyed) return
         this._onParsedTorrent(parsedTorrent)
       })
     } else {
-      // If torrentId failed to parse, it could be in a form that requires an async
-      // operation, i.e. http/https link, filesystem path, or Blob.
       parseTorrent.remote(torrentId, (err, parsedTorrent) => {
         if (this.destroyed) return
         if (err) return this._destroy(err)
@@ -231,14 +204,11 @@ class Torrent extends EventEmitter {
     }, RECHOKE_INTERVAL)
     if (this._rechokeIntervalId.unref) this._rechokeIntervalId.unref()
 
-    // Private 'infoHash' event allows client.add to check for duplicate torrents and
-    // destroy them before the normal 'infoHash' event is emitted. Prevents user
-    // applications from needing to deal with duplicate 'infoHash' events.
     this.emit('_infoHash', this.infoHash)
     if (this.destroyed) return
 
     this.emit('infoHash', this.infoHash)
-    if (this.destroyed) return // user might destroy torrent in event handler
+    if (this.destroyed) return
 
     if (this.client.listening) {
       this._onListening()
@@ -250,20 +220,16 @@ class Torrent extends EventEmitter {
   }
 
   _processParsedTorrent (parsedTorrent) {
-    // this._debugId = parsedTorrent.infoHash.toString('hex').substring(0, 7)
 
     if (this.announce) {
-      // Allow specifying trackers via `opts` parameter
       parsedTorrent.announce = parsedTorrent.announce.concat(this.announce)
     }
 
     if (this.client.tracker && global.WEBTORRENT_ANNOUNCE && !this.private) {
-      // So `webtorrent-hybrid` can force specific trackers to be used
       parsedTorrent.announce = parsedTorrent.announce.concat(global.WEBTORRENT_ANNOUNCE)
     }
 
     if (this.urlList) {
-      // Allow specifying web seeds via `opts` parameter
       parsedTorrent.urlList = parsedTorrent.urlList.concat(this.urlList)
     }
 
@@ -280,8 +246,6 @@ class Torrent extends EventEmitter {
     if (this.destroyed) return
 
     if (this.info) {
-      // if full metadata was included in initial torrent id, use it immediately. Otherwise,
-      // wait for torrent-discovery to find peers and ut_metadata to get the metadata.
       this._onMetadata(this)
     } else {
       if (this.xs) this._getMetadataFromServer()
@@ -305,7 +269,6 @@ class Torrent extends EventEmitter {
             Object.assign(opts, this.client.tracker.getAnnounceOpts())
           }
           if (this._getAnnounceOpts) {
-            // TODO: consider deprecating this, as it's redundant with the former case
             Object.assign(opts, this._getAnnounceOpts())
           }
           return opts
@@ -313,7 +276,6 @@ class Torrent extends EventEmitter {
       })
     }
 
-    // begin discovering peers via DHT and trackers
     this.discovery = new Discovery({
       infoHash: this.infoHash,
       announce: this.announce,
@@ -329,7 +291,6 @@ class Torrent extends EventEmitter {
     })
 
     this.discovery.on('peer', (peer) => {
-      // Don't create new outgoing TCP connections when torrent is done
       if (typeof peer === 'string' && this.done) return
       this.addPeer(peer)
     })
@@ -350,7 +311,6 @@ class Torrent extends EventEmitter {
   }
 
   _getMetadataFromServer () {
-    // to allow function hoisting
     const self = this
 
     const urls = Array.isArray(this.xs) ? this.xs : [this.xs]
@@ -417,12 +377,8 @@ class Torrent extends EventEmitter {
     }
   }
 
-  /**
-   * Called when the full torrent metadata is received.
-   */
   _onMetadata (metadata) {
     if (this.metadata || this.destroyed) return
-    // this._debug('got metadata')
 
     this._xsRequests.forEach(req => {
       req.abort()
@@ -431,7 +387,6 @@ class Torrent extends EventEmitter {
 
     let parsedTorrent
     if (metadata && metadata.infoHash) {
-      // `metadata` is a parsed torrent (from parse-torrent module)
       parsedTorrent = metadata
     } else {
       try {
@@ -444,7 +399,6 @@ class Torrent extends EventEmitter {
     this._processParsedTorrent(parsedTorrent)
     this.metadata = this.torrentFile
 
-    // add web seed urls (BEP19)
     if (this.client.enableWebSeeds) {
       this.urlList.forEach(url => {
         this.addWebSeed(url)
@@ -470,7 +424,6 @@ class Torrent extends EventEmitter {
 
     this.files = this.files.map(file => new File(this, file))
 
-    // Select only specified files (BEP53) http://www.bittorrent.org/beps/bep_0053.html
     if (this.so) {
       const selectOnlyFiles = parseRange.parse(this.so)
 
@@ -478,7 +431,6 @@ class Torrent extends EventEmitter {
         if (selectOnlyFiles.includes(i)) this.files[i].select(true)
       })
     } else {
-      // start off selecting the entire torrent with low priority
       if (this.pieces.length !== 0) {
         this.select(0, this.pieces.length - 1, false)
       }
@@ -498,33 +450,25 @@ class Torrent extends EventEmitter {
     this.bitfield = new BitField(this.pieces.length)
 
     this.wires.forEach(wire => {
-      // If we didn't have the metadata at the time ut_metadata was initialized for this
-      // wire, we still want to make it available to the peer in case they request it.
       if (wire.ut_metadata) wire.ut_metadata.setMetadata(this.metadata)
 
       this._onWireWithMetadata(wire)
     })
 
-    // Emit 'metadata' before 'ready' and 'done'
     this.emit('metadata')
 
-    // User might destroy torrent in response to 'metadata' event
     if (this.destroyed) return
 
     if (this.skipVerify) {
-      // Skip verifying exisitng data and just assume it's correct
       this._markAllVerified()
       this._onStore()
     } else {
       const onPiecesVerified = (err) => {
         if (err) return this._destroy(err)
-        // this._debug('done verifying')
         this._onStore()
       }
 
-      // this._debug('verifying existing torrent data')
       if (this._fileModtimes && this._store === FSChunkStore) {
-        // don't verify if the files haven't been modified since we last checked
         this.getFileModtimes((err, fileModtimes) => {
           if (err) return this._destroy(err)
 

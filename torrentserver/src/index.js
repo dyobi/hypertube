@@ -3,9 +3,8 @@
 const { EventEmitter } = require('events')
 const concat = require('simple-concat')
 const createTorrent = require('create-torrent')
-// const debug = require('debug')('webtorrent')
-const DHT = require('bittorrent-dht/client') // browser exclude
-const loadIPSet = require('load-ip-set') // browser exclude
+const DHT = require('bittorrent-dht/client')
+const loadIPSet = require('load-ip-set')
 const parallel = require('run-parallel')
 const parseTorrent = require('parse-torrent')
 const path = require('path')
@@ -13,33 +12,14 @@ const Peer = require('simple-peer')
 const randombytes = require('randombytes')
 const speedometer = require('speedometer')
 
-const TCPPool = require('./tcp-pool') // browser exclude
+const TCPPool = require('./tcp-pool')
 const Torrent = require('./torrent')
 const VERSION = require('../package.json').version
 
-/**
- * Version number in Azureus-style. Generated from major and minor semver version.
- * For example:
- *   '0.16.1' -> '0016'
- *   '1.2.5' -> '0102'
- */
-const VERSION_STR = VERSION
-  .replace(/\d*./g, v => `0${v % 100}`.slice(-2))
-  .slice(0, 4)
+const VERSION_STR = VERSION.replace(/\d*./g, v => `0${v % 100}`.slice(-2)).slice(0, 4)
 
-/**
- * Version prefix string (used in peer ID). WebTorrent uses the Azureus-style
- * encoding: '-', two characters for client id ('WW'), four ascii digits for version
- * number, '-', followed by random numbers.
- * For example:
- *   '-WW0102-'...
- */
 const VERSION_PREFIX = `-WW${VERSION_STR}-`
 
-/**
- * WebTorrent Client
- * @param {Object=} opts
- */
 class TorrentService extends EventEmitter {
   constructor (opts = {}) {
     super()
@@ -60,10 +40,8 @@ class TorrentService extends EventEmitter {
     } else {
       this.nodeId = randombytes(20).toString('hex')
     }
+
     this.nodeIdBuffer = Buffer.from(this.nodeId, 'hex')
-
-    // this._debugId = this.peerId.toString('hex').substring(0, 7)
-
     this.destroyed = false
     this.listening = false
     this.torrentPort = opts.torrentPort || 0
@@ -72,20 +50,13 @@ class TorrentService extends EventEmitter {
     this.torrents = []
     this.maxConns = Number(opts.maxConns) || 55
 
-    // this._debug(
-    //   'new webtorrent (peerId %s, nodeId %s, port %s)',
-    //   this.peerId, this.nodeId, this.torrentPort
-    // )
-
     if (this.tracker) {
       if (typeof this.tracker !== 'object') this.tracker = {}
       if (opts.rtcConfig) {
-        // TODO: remove in v1
         console.warn('WebTorrent: opts.rtcConfig is deprecated. Use opts.tracker.rtcConfig instead')
         this.tracker.rtcConfig = opts.rtcConfig
       }
       if (opts.wrtc) {
-        // TODO: remove in v1
         console.warn('WebTorrent: opts.wrtc is deprecated. Use opts.tracker.wrtc instead')
         this.tracker.wrtc = opts.wrtc
       }
@@ -102,12 +73,10 @@ class TorrentService extends EventEmitter {
       })
     }
 
-    // stats
     this._downloadSpeed = speedometer()
     this._uploadSpeed = speedometer()
 
-    if (opts.dht !== false && typeof DHT === 'function' /* browser exclude */) {
-      // use a single DHT instance for all torrents, so the routing table can be reused
+    if (opts.dht !== false && typeof DHT === 'function') {used
       this.dht = new DHT(Object.assign({}, { nodeId: this.nodeId }, opts.dht))
 
       this.dht.once('error', err => {
@@ -119,7 +88,6 @@ class TorrentService extends EventEmitter {
         if (address) this.dhtPort = address.port
       })
 
-      // Ignore warning when there are > 10 torrents in the client
       this.dht.setMaxListeners(0)
 
       this.dht.listen(this.dhtPort)
@@ -127,7 +95,6 @@ class TorrentService extends EventEmitter {
       this.dht = false
     }
 
-    // Enable or disable BEP19 (Web Seeds). Enabled by default:
     this.enableWebSeeds = opts.webSeeds !== false
 
     const ready = () => {
@@ -168,14 +135,6 @@ class TorrentService extends EventEmitter {
     return uploaded / received
   }
 
-  /**
-   * Returns the torrent with the given `torrentId`. Convenience method. Easier than
-   * searching through the `client.torrents` array. Returns `null` if no matching torrent
-   * found.
-   *
-   * @param  {string|Buffer|Object|Torrent} torrentId
-   * @return {Torrent|null}
-   */
   get (torrentId) {
     if (torrentId instanceof Torrent) {
       if (this.torrents.includes(torrentId)) return torrentId
@@ -193,18 +152,11 @@ class TorrentService extends EventEmitter {
     return null
   }
 
-  // TODO: remove in v1
   download (torrentId, opts, ontorrent) {
     console.warn('WebTorrent: client.download() is deprecated. Use client.add() instead')
     return this.add(torrentId, opts, ontorrent)
   }
 
-  /**
-   * Start downloading a new torrent. Aliased as `client.download`.
-   * @param {string|Buffer|Object} torrentId
-   * @param {Object} opts torrent-specific options
-   * @param {function=} ontorrent called when the torrent is ready (has metadata)
-   */
   add (torrentId, opts = {}, ontorrent) {
     if (this.destroyed) throw new Error('client is destroyed')
     if (typeof opts === 'function') [opts, ontorrent] = [{}, opts]
@@ -231,7 +183,6 @@ class TorrentService extends EventEmitter {
       torrent.removeListener('close', onClose)
     }
 
-    // this._debug('add')
     opts = opts ? Object.assign({}, opts) : {}
 
     const torrent = new Torrent(torrentId, this, opts)
@@ -245,32 +196,22 @@ class TorrentService extends EventEmitter {
     return torrent
   }
 
-  /**
-   * Start seeding a new file/folder.
-   * @param  {string|File|FileList|Buffer|Array.<string|File|Buffer>} input
-   * @param  {Object=} opts
-   * @param  {function=} onseed called when torrent is seeding
-   */
   seed (input, opts, onseed) {
     if (this.destroyed) throw new Error('client is destroyed')
     if (typeof opts === 'function') [opts, onseed] = [{}, opts]
 
-    // this._debug('seed')
     opts = opts ? Object.assign({}, opts) : {}
 
-    // no need to verify the hashes we create
     opts.skipVerify = true
 
     const isFilePath = typeof input === 'string'
 
-    // When seeding from fs path, initialize store from that path to avoid a copy
     if (isFilePath) opts.path = path.dirname(input)
     if (!opts.createdBy) opts.createdBy = `WebTorrent/${VERSION_STR}`
 
     const onTorrent = torrent => {
       const tasks = [
         cb => {
-          // when a filesystem path is specified, files are already in the FS store
           if (isFilePath) return cb()
           torrent.load(streams, cb)
         }
@@ -288,7 +229,6 @@ class TorrentService extends EventEmitter {
     }
 
     const _onseed = torrent => {
-      // this._debug('on seed')
       if (typeof onseed === 'function') onseed(torrent)
       torrent.emit('seed')
       this.emit('seed', torrent)
@@ -330,13 +270,7 @@ class TorrentService extends EventEmitter {
     return torrent
   }
 
-  /**
-   * Remove a torrent from the client.
-   * @param  {string|Buffer|Torrent}   torrentId
-   * @param  {function} cb
-   */
   remove (torrentId, cb) {
-    // this._debug('remove')
     const torrent = this.get(torrentId)
     if (!torrent) throw new Error(`No torrent with id ${torrentId}`)
     this._remove(torrentId, cb)
@@ -356,17 +290,12 @@ class TorrentService extends EventEmitter {
       : { address: '0.0.0.0', family: 'IPv4', port: 0 }
   }
 
-  /**
-   * Destroy the client, including all torrents and connections to peers.
-   * @param  {function} cb
-   */
   destroy (cb) {
     if (this.destroyed) throw new Error('client already destroyed')
     this._destroy(null, cb)
   }
 
   _destroy (err, cb) {
-    // this._debug('client destroy')
     this.destroyed = true
 
     const tasks = this.torrents.map(torrent => cb => {
@@ -395,42 +324,24 @@ class TorrentService extends EventEmitter {
   }
 
   _onListening () {
-    // this._debug('listening')
     this.listening = true
 
     if (this._tcpPool) {
-      // Sometimes server.address() returns `null` in Docker.
       const address = this._tcpPool.server.address()
       if (address) this.torrentPort = address.port
     }
 
     this.emit('listening')
   }
-
-  // _debug () {
-  //   const args = [].slice.call(arguments)
-  //   args[0] = `[${this._debugId}] ${args[0]}`
-  //   debug(...args)
-  // }
 }
 
 TorrentService.WEBRTC_SUPPORT = Peer.WEBRTC_SUPPORT
 TorrentService.VERSION = VERSION
 
-/**
- * Check if `obj` is a node Readable stream
- * @param  {*} obj
- * @return {boolean}
- */
 function isReadable (obj) {
   return typeof obj === 'object' && obj != null && typeof obj.pipe === 'function'
 }
 
-/**
- * Check if `obj` is a W3C `FileList` object
- * @param  {*} obj
- * @return {boolean}
- */
 function isFileList (obj) {
   return typeof FileList !== 'undefined' && obj instanceof FileList
 }

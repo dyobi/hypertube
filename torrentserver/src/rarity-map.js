@@ -1,8 +1,4 @@
 
-/**
- * Mapping of torrent pieces to their respective availability in the torrent swarm. Used
- * by the torrent manager for implementing the rarest piece first selection strategy.
- */
 class RarityMap {
   constructor (torrent) {
     this._torrent = torrent
@@ -27,13 +23,6 @@ class RarityMap {
     this.recalculate()
   }
 
-  /**
-   * Get the index of the rarest piece. Optionally, pass a filter function to exclude
-   * certain pieces (for instance, those that we already have).
-   *
-   * @param {function} pieceFilterFunc
-   * @return {number} index of rarest piece, or -1
-   */
   getRarestPiece (pieceFilterFunc) {
     let candidates = []
     let min = Infinity
@@ -51,7 +40,6 @@ class RarityMap {
     }
 
     if (candidates.length) {
-      // if there are multiple pieces with the same availability, choose one randomly
       return candidates[Math.random() * candidates.length | 0]
     } else {
       return -1
@@ -84,9 +72,6 @@ class RarityMap {
     wire.once('close', wire._onClose)
   }
 
-  /**
-   * Recalculates piece availability across all peers in the torrent.
-   */
   recalculate () {
     this._pieces.fill(0)
 

@@ -17,7 +17,7 @@ public class HistoryController {
         return historyService.getHistory(token, movieId);
     }
 
-    @GetMapping("/histories/userName/{userName}")
+    @GetMapping("/histories/{userName}")
     public Response getHistories(@RequestParam String token, @PathVariable("userName") String userName) {
         return historyService.getHistories(token, userName);
     }

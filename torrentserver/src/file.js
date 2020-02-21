@@ -41,8 +41,6 @@ class File extends EventEmitter {
     const { _startPiece: start, _endPiece: end } = this
     const piece = pieces[start]
 
-    // First piece may have an offset, e.g. irrelevant bytes from the end of
-    // the previous file
     const irrelevantFirstPieceBytes = this.offset % pieceLength
     let downloaded = bitfield.get(start)
       ? pieceLength - irrelevantFirstPieceBytes
@@ -50,17 +48,13 @@ class File extends EventEmitter {
 
     for (let index = start + 1; index <= end; ++index) {
       if (bitfield.get(index)) {
-        // verified data
         downloaded += pieceLength
       } else {
-        // "in progress" data
         const piece = pieces[index]
         downloaded += pieceLength - piece.missing
       }
     }
 
-    // We don't know the end offset, so return this.length if it's oversized.
-    // e.g. One small file can fit in the middle of a piece.
     return Math.min(downloaded, this.length)
   }
 

@@ -1,5 +1,4 @@
 const arrayRemove = require('unordered-array-remove')
-// const debug = require('debug')('webtorrent:peer')
 const Wire = require('bittorrent-protocol')
 
 const WebConn = require('./webconn')
@@ -8,11 +7,6 @@ const CONNECT_TIMEOUT_TCP = 5000
 const CONNECT_TIMEOUT_WEBRTC = 25000
 const HANDSHAKE_TIMEOUT = 25000
 
-/**
- * WebRTC peer connections start out connected, because WebRTC peers require an
- * "introduction" (i.e. WebRTC signaling), and there's no equivalent to an IP address
- * that lets you refer to a WebRTC endpoint.
- */
 exports.createWebRTCPeer = (conn, swarm) => {
   const peer = new Peer(conn.id, 'webrtc')
   peer.conn = conn
@@ -29,11 +23,6 @@ exports.createWebRTCPeer = (conn, swarm) => {
   return peer
 }
 
-/**
- * Incoming TCP peers start out connected, because the remote peer connected to the
- * listening port of the TCP server. Until the remote peer sends a handshake, we don't
- * know what swarm the connection is intended for.
- */
 exports.createTCPIncomingPeer = conn => {
   const addr = `${conn.remoteAddress}:${conn.remotePort}`
   const peer = new Peer(addr, 'tcpIncoming')
@@ -45,10 +34,6 @@ exports.createTCPIncomingPeer = conn => {
   return peer
 }
 
-/**
- * Outgoing TCP peers start out with just an IP address. At some point (when there is an
- * available connection), the client can attempt to connect to the address.
- */
 exports.createTCPOutgoingPeer = (addr, swarm) => {
   const peer = new Peer(addr, 'tcpOutgoing')
   peer.addr = addr
@@ -57,31 +42,19 @@ exports.createTCPOutgoingPeer = (addr, swarm) => {
   return peer
 }
 
-/**
- * Peer that represents a Web Seed (BEP17 / BEP19).
- */
 exports.createWebSeedPeer = (url, swarm) => {
   const peer = new Peer(url, 'webSeed')
   peer.swarm = swarm
   peer.conn = new WebConn(url, swarm)
-
   peer.onConnect()
 
   return peer
 }
 
-/**
- * Peer. Represents a peer in the torrent swarm.
- *
- * @param {string} id "ip:port" string, peer id (for WebRTC peers), or url (for Web Seeds)
- * @param {string} type the type of the peer
- */
 class Peer {
   constructor (id, type) {
     this.id = id
     this.type = type
-
-    // debug('new %s Peer %s', type, id)
 
     this.addr = null
     this.conn = null
@@ -90,21 +63,15 @@ class Peer {
 
     this.connected = false
     this.destroyed = false
-    this.timeout = null // handshake timeout
-    this.retries = 0 // outgoing TCP connection retry count
+    this.timeout = null
+    this.retries = 0
 
     this.sentHandshake = false
   }
 
-  /**
-   * Called once the peer is connected (i.e. fired 'connect' event)
-   * @param {Socket} conn
-   */
   onConnect () {
     if (this.destroyed) return
     this.connected = true
-
-    // debug('Peer %s connected', this.id)
 
     clearTimeout(this.connectTimeout)
 
@@ -146,13 +113,8 @@ class Peer {
     if (this.swarm && !this.sentHandshake) this.handshake()
   }
 
-  /**
-   * Called when handshake is received from remote peer.
-   * @param {string} infoHash
-   * @param {string} peerId
-   */
   onHandshake (infoHash, peerId) {
-    if (!this.swarm) return // `this.swarm` not set yet, so do nothing
+    if (!this.swarm) return
     if (this.destroyed) return
 
     if (this.swarm.destroyed) {
@@ -165,8 +127,6 @@ class Peer {
       return this.destroy(new Error('refusing to connect to ourselves'))
     }
 
-    // debug('Peer %s got handshake %s', this.id, infoHash)
-
     clearTimeout(this.handshakeTimeout)
 
     this.retries = 0
@@ -177,7 +137,6 @@ class Peer {
     }
     this.swarm._onWire(this.wire, addr)
 
-    // swarm could be destroyed in user's 'wire' event handler
     if (!this.swarm || this.swarm.destroyed) return
 
     if (!this.sentHandshake) this.handshake()
@@ -211,8 +170,6 @@ class Peer {
     if (this.destroyed) return
     this.destroyed = true
     this.connected = false
-
-    // debug('destroy %s (error: %s)', this.id, err && (err.message || err))
 
     clearTimeout(this.connectTimeout)
     clearTimeout(this.handshakeTimeout)
