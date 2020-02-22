@@ -40,7 +40,6 @@ app.get('/stream/add/:magnet', (req, res) => {
     }
 
     client.add(magnet, torrent => {
-        console.log(`magnet(${magnet}) has added`);
         let max = {
             name: '',
             length: 0
@@ -60,8 +59,6 @@ app.get('/stream/add/:magnet', (req, res) => {
 app.get('/stream/play/:magnet/:filename', (req, res, next) => {
     const magnet = req.params.magnet;
     const filename = req.params.filename;
-
-    console.log(filename);
 
     const tor = client.get(magnet);
 
@@ -111,4 +108,4 @@ app.get('/stream/play/:magnet/:filename', (req, res, next) => {
     });
 });
 
-server.listen(STREAM_PORT, () => console.log(`Torrent server is listening on ${STREAM_PORT}`));
+server.listen(STREAM_PORT, () => console.log(`Streaming server is listening on ${STREAM_PORT}`));
