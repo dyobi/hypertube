@@ -16,7 +16,7 @@ public class Verify {
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @OneToOne(cascade = CascadeType.ALL) @JoinColumn(name = "userId")
+    @OneToOne @JoinColumn(name = "userId")
     @OnDelete(action = OnDeleteAction.CASCADE)
     User user;
 

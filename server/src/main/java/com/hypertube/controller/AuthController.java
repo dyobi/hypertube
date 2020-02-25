@@ -1,5 +1,6 @@
 package com.hypertube.controller;
 
+import com.hypertube.model.RecoveryWrapper;
 import com.hypertube.model.Response;
 import com.hypertube.model.User;
 import com.hypertube.service.AuthService;
@@ -42,9 +43,9 @@ public class AuthController {
         return authService.recovery(email);
     }
 
-    @PutMapping("/recovery/{uuid}")
-    public Response recoveryPassword(@PathVariable("uuid") String uuid, @RequestBody String password) {
-        return authService.recoveryPassword(password, uuid);
+    @PutMapping("/recovery")
+    public Response recoveryPassword(@RequestBody RecoveryWrapper wrapper) {
+        return authService.recoveryPassword(wrapper.getPassword(), wrapper.getUuid());
     }
 
 }
