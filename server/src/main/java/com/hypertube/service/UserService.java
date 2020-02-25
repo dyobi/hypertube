@@ -6,6 +6,7 @@ import com.hypertube.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UserService {
@@ -58,6 +59,22 @@ public class UserService {
             if (lastName != null) user.setLastName(lastName);
             userRepository.save(user);
             return new Response(200);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(400);
+        }
+    }
+
+    public Response putUserPicture(String token, MultipartFile picture) {
+        try {
+            if (!tokenService.checkToken(token)) return new Response(401);
+            else if (!userRepository.findById(tokenService.decodeToken(token)).isPresent()) return new Response(401);
+            User user = userRepository.findById(tokenService.decodeToken(token)).orElse(null);
+            PictureService pictureService = new PictureService();
+            String fileName = pictureService.uploadWithFile(picture);
+            user.setPicture("SERVER/" + fileName);
+            userRepository.save(user);
+            return new Response(200, "SERVER/" + fileName);
         } catch (Exception e) {
             e.printStackTrace();
             return new Response(400);
