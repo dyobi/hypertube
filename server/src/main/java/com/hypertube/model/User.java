@@ -41,4 +41,7 @@ public class User {
     @Transient @OneToMany(mappedBy = "user")
     private List<History> histories = new ArrayList();
 
+    @Transient @OneToOne(mappedBy = "user", orphanRemoval = true)
+    private Verify verify;
+
 }

@@ -2,18 +2,27 @@ package com.hypertube.service;
 
 import com.hypertube.model.Response;
 import com.hypertube.model.User;
+import com.hypertube.model.Verify;
 import com.hypertube.repository.UserRepository;
+import com.hypertube.repository.VerifyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import javax.mail.internet.MimeMessage;
+import java.util.UUID;
 
 @Service
 public class AuthService {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    VerifyRepository verifyRepository;
 
     @Autowired
     TokenService tokenService;
@@ -83,11 +92,39 @@ public class AuthService {
     public Response recovery(String email) {
         try {
             if (userRepository.findByEmail(email) == null) return new Response(400);
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("subject");
-            message.setText("text");
+            Verify verify = new Verify();
+            UUID uuid = UUID.randomUUID();
+            verify.setUser(userRepository.findByEmail(email));
+            verify.setUuid(uuid.toString());
+            MimeMessage message = emailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setTo(email);
+            helper.setSubject("HyperTube Recovery Service");
+            helper.setText( "<body>" +
+                    "<a classname=\"hover\" href=\"https://localhost:3000/auth/recovery/" +
+                    uuid +
+                    "\" style=\"text-decoration: none; color: #d3d3d3;\">" +
+                    "<h2>Change Your Password Now !</h2>" +
+                    "</a>" +
+                    "</body>", true);
             emailSender.send(message);
+            verifyRepository.save(verify);
+            return new Response(200, uuid);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Response(400);
+        }
+    }
+
+    public Response recoveryPassword(String password, String uuid) {
+        try {
+            Verify verify = verifyRepository.findByUuid(uuid);
+            if (verify == null) return new Response(400);
+            verifyRepository.delete(verify);
+            User user = userRepository.findById(verify.getUser().getId()).orElse(null);
+            if (user == null) return new Response(400);
+            user.setPassword(passwordEncoder.encode(password));
+            userRepository.save(user);
             return new Response(200);
         } catch (Exception e) {
             e.printStackTrace();

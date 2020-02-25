@@ -42,4 +42,9 @@ public class AuthController {
         return authService.recovery(email);
     }
 
+    @PutMapping("/recovery/{uuid}")
+    public Response recoveryPassword(@PathVariable("uuid") String uuid, @RequestBody String password) {
+        return authService.recoveryPassword(password, uuid);
+    }
+
 }
