@@ -8,8 +8,9 @@ import com.hypertube.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 @Service
 public class HistoryService {
@@ -51,11 +52,12 @@ public class HistoryService {
                 res.setMovieId(movieId);
                 res.setCurrent(current);
                 res.setDuration(duration);
+                res.setTime(new SimpleDateFormat("yyyy-MM-dd kk:mm").format((new Date())));
                 historyRepository.save(res);
             } else {
                 history.setCurrent(current);
                 history.setDuration(duration);
-                history.setTime(OffsetDateTime.now());
+                history.setTime(new SimpleDateFormat("yyyy-MM-dd kk:mm").format((new Date())));
                 historyRepository.save(history);
             } return new Response(200);
         } catch (Exception e) {

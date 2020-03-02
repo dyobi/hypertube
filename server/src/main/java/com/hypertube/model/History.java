@@ -9,7 +9,6 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-import java.time.OffsetDateTime;
 
 @Entity @DynamicInsert @DynamicUpdate @Getter @Setter
 public class History {
@@ -30,6 +29,6 @@ public class History {
     @NotNull
     private int duration;
 
-    private OffsetDateTime time = OffsetDateTime.now();
+    private String time;
 
 }

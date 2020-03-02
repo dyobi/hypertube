@@ -8,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 @Service
 public class CommentService {
@@ -59,6 +61,7 @@ public class CommentService {
             if (comment.getUser() == null) return new Response(400);
             comment.setMovieId(movieId);
             comment.setContent(content);
+            comment.setTime(new SimpleDateFormat("yyyy-MM-dd kk:mm").format((new Date())));
             commentRepository.save(comment);
             return new Response(200, comment);
         } catch (Exception e) {

@@ -28,6 +28,6 @@ public class Comment {
     @NotEmpty
     private String content;
 
-    private OffsetDateTime time = OffsetDateTime.now();
+    private String time;
 
 }

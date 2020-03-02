@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class HypertubeApplication {
 
     public static void main(String[] args) {
+
         SpringApplication.run(HypertubeApplication.class, args);
     }
 
