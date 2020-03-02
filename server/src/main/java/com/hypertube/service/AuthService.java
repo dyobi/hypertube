@@ -100,13 +100,23 @@ public class AuthService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
             helper.setTo(email);
             helper.setSubject("HyperTube Recovery Service");
-            helper.setText( "<body>" +
-                    "<a classname=\"hover\" href=\"https://localhost:3000/auth/recovery/" +
-                    uuid +
-                    "\" style=\"text-decoration: none; color: #d3d3d3;\">" +
-                    "<h2>Change Your Password Now !</h2>" +
-                    "</a>" +
-                    "</body>", true);
+            helper.setText( "    <body>\n" +
+                    "        <div style=\"width: 100%; height: auto; position: relative; float: left; background: #202020; font-family: sans-serif;\">\n" +
+                    "            <div style=\"width: 100%; height: 75px; position: relative; float: left; color: #AAAAAA; font-size: 30px; font-weight: 900; text-indent: 20px; line-height: 75px;\">HyperTube Password Recovery</div>\n" +
+                    "            <div style=\"width: 100%; height: auto; padding: 0 20px; position: relative; float: left; color: #808080; font-size: 15px; font-weight: 300; text-align: left; line-height: 2; box-sizing: border-box;\">\n" +
+                    "                For those writers who have writers' block, this can be an excellent way to take a\n" +
+                    "                step to crumbling those walls. By taking the writer away from the subject matter\n" +
+                    "                that is causing the block, a random sentence may allow them to see the project\n" +
+                    "                they're working on in a different light and perspective. Sometimes all it takes is\n" +
+                    "                to get that first sentence down to help break the block.\n" +
+                    "            </div>\n" +
+                    "            <div style=\"width: 100%; height: 100px; position: relative; float: left;\">\n" +
+                    "                <a href=\"https://localhost:3000/auth/recovery/" + uuid + "\" target=\"_blank\">\n" +
+                    "                    <button style=\"width: 200px; height: 50px; margin-left: 20px; margin-top: 25px; color: #404040; font-size: 15px; font-weight: 700; background-color: #AAAAAA; border: none; border-radius: 5px; outline: none; cursor: pointer\">Reset Your Password</button>\n" +
+                    "                </a>\n" +
+                    "            </div>\n" +
+                    "        </div>\n" +
+                    "    </body>", true);
             emailSender.send(message);
             verifyRepository.save(verify);
             return new Response(200, uuid);
